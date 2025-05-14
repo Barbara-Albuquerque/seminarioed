@@ -19,7 +19,7 @@ typedef struct {
 
 FilaPrioridade criar_fila_prioridade() {
     FilaPrioridade fila;
-    fila.tamanho = 0;
+    fila.tamanho = 0; // inicializa a fila ja com tamanho 0
     return fila;
 }
 
@@ -30,7 +30,8 @@ void swap(Processo *a, Processo *b) {
 }
 
 void inserir(FilaPrioridade *fila, int ID, int Prioridade, char tipo, int ciclos_necessarios) {
-    int i = fila->tamanho++;
+    int i = fila->tamanho;
+    
     fila->heap[i].ID = ID;
     fila->heap[i].Prioridade = Prioridade;
     fila->heap[i].Ciclos_espera = 0;
@@ -38,36 +39,51 @@ void inserir(FilaPrioridade *fila, int ID, int Prioridade, char tipo, int ciclos
     fila->heap[i].Ciclos_necessarios = ciclos_necessarios;
     fila->heap[i].Tipo = tipo;
 
-    while (i != 0 && fila->heap[(i - 1) / 2].Prioridade < fila->heap[i].Prioridade) {
-        swap(&fila->heap[i], &fila->heap[(i - 1) / 2]);
-        i = (i - 1) / 2;
+    while (i != 0) {
+        int dad = (i - 1) / 2;
+
+        // se o processo pai tem prioridade idx_maior que o inserido, nao faz nada 
+        if (fila->heap[dad].Prioridade > fila->heap[i].Prioridade) break;
+
+        // se a prioridade do pai e do inserido sao iguais, sobe o do tipo 'i'
+        if (fila->heap[dad].Prioridade == fila->heap[i].Prioridade &&
+            fila->heap[dad].Tipo == 'i') break; // dad tem prioridade igual e é interativo, não troca
+
+        // Caso contrário, faz a troca
+        swap(&fila->heap[i], &fila->heap[dad]);
+        i = dad;
     }
-}
+    fila->tamanho++;
+}   
+
 
 Processo remover(FilaPrioridade *fila) {
     Processo max = fila->heap[0];
-    fila->heap[0] = fila->heap[--fila->tamanho];
-
+    fila->heap[0] = fila->heap[fila->tamanho];
+    fila->tamanho--;
     int i = 0;
     while (2 * i + 1 < fila->tamanho) {
-        int maior = i;
-        int esq = 2 * i + 1;
-        int dir = 2 * i + 2;
+        int idx_maior = i;
+        int idx_esq = 2 * i + 1;
+        int idx_dir = 2 * i + 2;
 
-        if (fila->heap[esq].Prioridade > fila->heap[maior].Prioridade || 
-        (fila->heap[esq].Prioridade == fila->heap[maior].Prioridade && fila->heap[esq].Tipo == 'i' && fila->heap[maior].Tipo != 'i')) 
+        // checa se o filho da idx_esquerda tem prioridade idx_maior
+        //se as prioridades forem iguais, checa o tipo
+        if (fila->heap[idx_esq].Prioridade > fila->heap[idx_maior].Prioridade || 
+        (fila->heap[idx_esq].Prioridade == fila->heap[idx_maior].Prioridade && fila->heap[idx_esq].Tipo == 'i' && fila->heap[idx_maior].Tipo != 'i')) 
         {
-            maior = esq;
+            idx_maior = idx_esq;
         }
-
-    if (dir < fila->tamanho && (fila->heap[dir].Prioridade > fila->heap[maior].Prioridade || 
-        (fila->heap[dir].Prioridade == fila->heap[maior].Prioridade && fila->heap[dir].Tipo == 'i' && fila->heap[maior].Tipo != 'i'))) 
+        // checa se o filho da idx_direita existe, se ele tem idx_maior prioridade
+        //se a prioridade deles forem iguais, checa o tipo
+    if (idx_dir < fila->tamanho && (fila->heap[idx_dir].Prioridade > fila->heap[idx_maior].Prioridade || 
+        (fila->heap[idx_dir].Prioridade == fila->heap[idx_maior].Prioridade && fila->heap[idx_dir].Tipo == 'i' && fila->heap[idx_maior].Tipo != 'i'))) 
         {
-            maior = dir;
+            idx_maior = idx_dir;
         }
-        if (maior == i) break;
-        swap(&fila->heap[i], &fila->heap[maior]);
-        i = maior;
+        if (idx_maior == i) break;
+        swap(&fila->heap[i], &fila->heap[idx_maior]);
+        i = idx_maior;
     }
     return max;
 }
@@ -154,7 +170,7 @@ int main() {
             inserir(&fila, novo_id, nova_prioridade, tipo, ciclos_necessarios);
         }
 
-        // Executa o processo no topo (sem removê-lo diretamente)
+        // Executa o processo no topo (sem removê-lo idx_diretamente)
         executar_processo(&fila);
 
         // Aging dos processos restantes

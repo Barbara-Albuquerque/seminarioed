@@ -42,7 +42,7 @@ void inserir(FilaPrioridade *fila, int ID, int Prioridade, char tipo, int ciclos
     while (i != 0) {
         int dad = (i - 1) / 2;
 
-        // se o processo pai tem prioridade idx_maior que o inserido, nao faz nada 
+        // se o processo pai tem prioridade maior que o inserido, nao faz nada 
         if (fila->heap[dad].Prioridade > fila->heap[i].Prioridade) break;
 
         // se a prioridade do pai e do inserido sao iguais, sobe o do tipo 'i'
@@ -59,31 +59,28 @@ void inserir(FilaPrioridade *fila, int ID, int Prioridade, char tipo, int ciclos
 
 Processo remover(FilaPrioridade *fila) {
     Processo max = fila->heap[0];
-    fila->heap[0] = fila->heap[fila->tamanho];
-    fila->tamanho--;
+    fila->heap[0] = fila->heap[--fila->tamanho];
+
     int i = 0;
     while (2 * i + 1 < fila->tamanho) {
-        int idx_maior = i;
-        int idx_esq = 2 * i + 1;
-        int idx_dir = 2 * i + 2;
+        int maior = i;
+        int esq = 2 * i + 1;
+        int dir = 2 * i + 2;
 
-        // checa se o filho da idx_esquerda tem prioridade idx_maior
-        //se as prioridades forem iguais, checa o tipo
-        if (fila->heap[idx_esq].Prioridade > fila->heap[idx_maior].Prioridade || 
-        (fila->heap[idx_esq].Prioridade == fila->heap[idx_maior].Prioridade && fila->heap[idx_esq].Tipo == 'i' && fila->heap[idx_maior].Tipo != 'i')) 
+        if (fila->heap[esq].Prioridade > fila->heap[maior].Prioridade || 
+        (fila->heap[esq].Prioridade == fila->heap[maior].Prioridade && fila->heap[esq].Tipo == 'i' && fila->heap[maior].Tipo != 'i')) 
         {
-            idx_maior = idx_esq;
+            maior = esq;
         }
-        // checa se o filho da idx_direita existe, se ele tem idx_maior prioridade
-        //se a prioridade deles forem iguais, checa o tipo
-    if (idx_dir < fila->tamanho && (fila->heap[idx_dir].Prioridade > fila->heap[idx_maior].Prioridade || 
-        (fila->heap[idx_dir].Prioridade == fila->heap[idx_maior].Prioridade && fila->heap[idx_dir].Tipo == 'i' && fila->heap[idx_maior].Tipo != 'i'))) 
+
+    if (dir < fila->tamanho && (fila->heap[dir].Prioridade > fila->heap[maior].Prioridade || 
+        (fila->heap[dir].Prioridade == fila->heap[maior].Prioridade && fila->heap[dir].Tipo == 'i' && fila->heap[maior].Tipo != 'i'))) 
         {
-            idx_maior = idx_dir;
+            maior = dir;
         }
-        if (idx_maior == i) break;
-        swap(&fila->heap[i], &fila->heap[idx_maior]);
-        i = idx_maior;
+        if (maior == i) break;
+        swap(&fila->heap[i], &fila->heap[maior]);
+        i = maior;
     }
     return max;
 }
@@ -170,7 +167,7 @@ int main() {
             inserir(&fila, novo_id, nova_prioridade, tipo, ciclos_necessarios);
         }
 
-        // Executa o processo no topo (sem removê-lo idx_diretamente)
+        // Executa o processo no topo (sem removê-lo diretamente)
         executar_processo(&fila);
 
         // Aging dos processos restantes

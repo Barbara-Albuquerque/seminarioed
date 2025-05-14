@@ -4,155 +4,176 @@
 #define MAX 100
 
 typedef struct {
-    int ID;
-    int Prioridade;
-    int Ciclos_espera;
-    char Tipo; // tipo de processo, recebe um 'b' para background e 'i' para interativo
-} Processo;
+    int id;
+    int priority;
+    int wait_cycles;      
+    int executed_cycles;   
+    int required_cycles;   
+    char type;           
+} Process;
 
 typedef struct {
-    Processo heap[MAX];
-    int tamanho;
-} FilaPrioridade;
+    Process heap[MAX];
+    int size;
+} PriorityQueue;
 
-FilaPrioridade criar_fila_prioridade() {
-    FilaPrioridade fila;
-    fila.tamanho = 0;
-    return fila;
+PriorityQueue create_priority_queue() {
+    PriorityQueue queue;
+    queue.size = 0;
+    return queue;
 }
 
-
-void swap(Processo *a, Processo *b) {
-    Processo temp = *a;
+void swap(Process *a, Process *b) {
+    Process temp = *a;
     *a = *b;
     *b = temp;
 }
 
-void inserir(FilaPrioridade *fila, int ID, int Prioridade, char tipo) {
-    int i = fila->tamanho++;
-    fila->heap[i].ID = ID;
-    fila->heap[i].Prioridade = Prioridade;
-    fila->heap[i].Ciclos_espera = 0;
-    fila->heap[i].Tipo = tipo;
+void insert(PriorityQueue *queue, int id, int priority, char type, int required_cycles) {
+    int i = queue->size;
 
-    while (i != 0 && fila->heap[(i - 1) / 2].Prioridade < fila->heap[i].Prioridade) {
-        swap(&fila->heap[i], &fila->heap[(i - 1) / 2]);
-        i = (i - 1) / 2;
+    queue->heap[i].id = id;
+    queue->heap[i].priority = priority;
+    queue->heap[i].wait_cycles = 0;
+    queue->heap[i].executed_cycles = 0;
+    queue->heap[i].required_cycles = required_cycles;
+    queue->heap[i].type = type;
+
+    while (i != 0) {
+        int parent = (i - 1) / 2;
+
+        if (queue->heap[parent].priority > queue->heap[i].priority) break;
+
+        if (queue->heap[parent].priority == queue->heap[i].priority &&
+            queue->heap[parent].type == 'i') break;
+
+        swap(&queue->heap[i], &queue->heap[parent]);
+        i = parent;
     }
+    queue->size++;
 }
 
-
-Processo remover(FilaPrioridade *fila) {
-    Processo max = fila->heap[0];
-    fila->heap[0] = fila->heap[--fila->tamanho];
+Process remove_max(PriorityQueue *queue) {
+    Process max = queue->heap[0];
+    queue->heap[0] = queue->heap[--queue->size];
 
     int i = 0;
-    while (2 * i + 1 < fila->tamanho) {
-        int maior = i;
-        int esq = 2 * i + 1;
-        int dir = 2 * i + 2;
+    while (2 * i + 1 < queue->size) {
+        int largest = i;
+        int left = 2 * i + 1;
+        int right = 2 * i + 2;
 
-        if (fila->heap[esq].Prioridade > fila->heap[maior].Prioridade) maior = esq;
-        if (dir < fila->tamanho && fila->heap[dir].Prioridade > fila->heap[maior].Prioridade) maior = dir;
+        if (queue->heap[left].priority > queue->heap[largest].priority ||
+            (queue->heap[left].priority == queue->heap[largest].priority && 
+             queue->heap[left].type == 'i' && queue->heap[largest].type != 'i')) {
+            largest = left;
+        }
 
-        if (maior == i) break;
-        swap(&fila->heap[i], &fila->heap[maior]);
-        i = maior;
+        if (right < queue->size && 
+            (queue->heap[right].priority > queue->heap[largest].priority ||
+             (queue->heap[right].priority == queue->heap[largest].priority && 
+              queue->heap[right].type == 'i' && queue->heap[largest].type != 'i'))) {
+            largest = right;
+        }
+
+        if (largest == i) break;
+
+        swap(&queue->heap[i], &queue->heap[largest]);
+        i = largest;
     }
-
     return max;
 }
-void aging(FilaPrioridade *fila) {
-    for (int i = 0; i < fila->tamanho; i++) {
-        fila->heap[i].Ciclos_espera++;
 
-        if (fila->heap[i].Tipo == 'i' && fila->heap[i].Ciclos_espera >= 2) {
-            fila->heap[i].Prioridade++;
-            fila->heap[i].Ciclos_espera = 0;
+void aging(PriorityQueue *queue) {
+    for (int i = 0; i < queue->size; i++) {
+        queue->heap[i].wait_cycles++;
+
+        if (queue->heap[i].type == 'i' && queue->heap[i].wait_cycles >= 2) {
+            queue->heap[i].priority++;
+            queue->heap[i].wait_cycles = 0;
         } 
-        else if (fila->heap[i].Tipo == 'b' && fila->heap[i].Ciclos_espera >= 5) {
-            fila->heap[i].Prioridade++;
-            fila->heap[i].Ciclos_espera = 0;
+        else if (queue->heap[i].type == 'b' && queue->heap[i].wait_cycles >= 5) {
+            queue->heap[i].priority++;
+            queue->heap[i].wait_cycles = 0;
         }
     }
 }
 
-
-void print_heap(FilaPrioridade *fila) {
-    printf("\nEstado Atual da Fila de Prioridade:\n");
-    for (int i = 0; i < fila->tamanho; i++) {
-        printf("ID: %d | Prioridade: %d | Tipo: %s | Tempo de Espera: %d\n",
-       fila->heap[i].ID,
-       fila->heap[i].Prioridade,
-       fila->heap[i].Tipo == 'i' ? "Interativo" : "Background",
-       fila->heap[i].Ciclos_espera);
+void print_queue(PriorityQueue *queue) {
+    printf("\n--- Estado Atual da Fila de Prioridade: ---\n");
+    for (int i = 0; i < queue->size; i++) {
+        printf("ID: %d | Prioridade: %d | Tipo: %s | Ciclos em espera: %d | Executado: %d/%d\n",
+               queue->heap[i].id,
+               queue->heap[i].priority,
+               queue->heap[i].type == 'i' ? "Interativo" : "Background",
+               queue->heap[i].wait_cycles,
+               queue->heap[i].executed_cycles,
+               queue->heap[i].required_cycles);
     }
-    printf("--------------------------\n");
+    printf("-------------------------------------\n");
 }
 
+void execute_process(PriorityQueue *queue) {
+    if (queue->size == 0) return;
 
-void boost_prioridade(FilaPrioridade *fila, int id_processo, int nova_prioridade) {
-    for (int i = 0; i < fila->tamanho; i++) {
-        if (fila->heap[i].ID == id_processo) {
-            printf("Processo de ID %d teve sua prioridade aumentada para %d!\n", id_processo, nova_prioridade);
-            fila->heap[i].Prioridade = nova_prioridade;
-            // Reorganiza a heap já que a prioridade mudou
-            int idx = i;
-            while (idx != 0 && fila->heap[(idx - 1) / 2].Prioridade < fila->heap[idx].Prioridade) {
-                swap(&fila->heap[idx], &fila->heap[(idx - 1) / 2]);
-                idx = (idx - 1) / 2;
-            }
-            break;
+    Process *p = &queue->heap[0];
+    p->executed_cycles++;
+
+    printf("\n Executando Processo ID #%d | Prioridade: %d | Ciclo %d/%d\n",
+           p->id, p->priority, p->executed_cycles, p->required_cycles);
+
+    if (p->required_cycles - p->executed_cycles <= 1) {
+        if (p->type == 'i' && p->priority < 10) {
+            printf("Processo Interativo ID #%d prestes a finalizar! Prioridade elevada para 10.\n", p->id);
+            p->priority = 10;
+        } else if (p->type == 'b' && p->priority < 9) {
+            printf("Processo Background ID #%d prestes a finalizar! Prioridade elevada para 9.\n", p->id);
+            p->priority = 9;
         }
     }
+
+    if (p->executed_cycles >= p->required_cycles) {
+        printf("Processo ID #%d concluido e removido da fila.\n", p->id);
+        remove_max(queue);
+    }
+}
+void generate_new_process(PriorityQueue *queue, int cycles) {
+    if (cycles % 4 != 0) return;   
+
+    int new_id = rand() + cycles;   
+    int new_priority = rand() % 10 + 1;  
+    char type = (rand() % 2 == 0) ? 'i' : 'b';  
+    int required_cycles = (rand() % 5) + 1;    
+
+    printf("\n Novo processo chegou! (ID #%d, Prioridade: %d, Ciclos necessarios: %d)\n",
+           new_id, new_priority, required_cycles);
+
+    insert(queue, new_id, new_priority, type, required_cycles);
 }
 
 
 int main() {
-    
-    FilaPrioridade fila_de_processos = criar_fila_prioridade();
+    PriorityQueue queue = create_priority_queue();
+    int cycles = 0;
 
-    // Inserção inicial de processos
-    inserir(&fila_de_processos, 1, 1, 'i');
-    inserir(&fila_de_processos, 2, 4, 'b');
-    inserir(&fila_de_processos, 3, 3, 'i');
-    inserir(&fila_de_processos, 4, 3, 'b');
-    inserir(&fila_de_processos, 5, 2, 'b');
-    inserir(&fila_de_processos, 6, 1, 'i');
-    inserir(&fila_de_processos, 7, 9, 'i');
-    inserir(&fila_de_processos, 8, 5, 'b');
+    insert(&queue, 1, 3, 'i', 4);
+    insert(&queue, 2, 2, 'b', 5);
+    insert(&queue, 3, 4, 'i', 2);
 
-    printf("Iniciando Escalonamento de Processos...\n");
-    int boost_aplicado;
-    int ciclos = 0;
-    while (fila_de_processos.tamanho > 0) {
-        ciclos++;
-        printf("\n Ciclo numero %d\n", ciclos);
+    print_queue(&queue);
 
-        if (ciclos % 3 == 0) {  // A cada 3 ciclos, chega um novo processo
-            int novo_id = 100 + ciclos;
-            int nova_prioridade = rand() % 10 + 1;
-            printf("\nNovo processo chegou! (ID %d, Prioridade %d)\n", novo_id, nova_prioridade);
-            char tipo_processo = (rand() % 2 == 0) ? 'i' : 'b';  // Aleatoriamente define 'i' ou 'b'
-            inserir(&fila_de_processos, novo_id, nova_prioridade, tipo_processo);
-        }
-        //altera a prioridade de um processo específico, no 5o ciclo
-        if (!boost_aplicado && ciclos == 5) {
-        boost_prioridade(&fila_de_processos, 6, 10);
-        boost_aplicado = 1;  // Marca que o boost foi aplicado
-    }
-        // Executa o processo de maior prioridade
-        Processo p = remover(&fila_de_processos);
-        printf("\nExecutando Processo ID: %d | Prioridade: %d\n", p.ID, p.Prioridade);
+    printf("\nIniciando Agendamento de Processos...\n");
 
-        // Aging para processos restantes
-        aging(&fila_de_processos);
-        
+    while (queue.size > 0) {
+        printf("\n--- Ciclo numero: %d ---\n", cycles);
 
-        // Exibe o estado da fila após a execução
-        print_heap(&fila_de_processos);
+        generate_new_process(&queue, cycles);
+        execute_process(&queue);
+        cycles++;
+        aging(&queue);
+        print_queue(&queue);
     }
 
-    printf("\nTodos os processos foram executados.\n");
+    printf("\nTodos os processos foram concluidos.\n");
     return 0;
 }
